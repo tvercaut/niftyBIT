@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def compute_cost(target, warped, mask):
+def compute_ssd(target, warped, mask):
 
     """
     Compute the sum of square difference between two images.
