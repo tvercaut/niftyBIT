@@ -1,5 +1,5 @@
 import numpy as np
-
+from utils import image as img
 
 class RegError(Exception):
     """
@@ -17,22 +17,50 @@ def generate_identity_deformation(image, def_image):
     Helper method to generate an identity transform
 
     :param image: The image whose geometry we will use
-    :param def_image: The field holding the transformation. Must have the correct header
-    in terms of spacing and rigid/affine transformations
+    :param def_image: The deformation field image. if it is none, an appropriate image file will
+    be created and returned
     """
-    # Matrix to go from world to voxel space
+
+    # Matrix to go from voxel to world space
     voxel_2_xyz = image.voxel_2_mm
     vol_ext = image.vol_ext
 
     voxels = np.mgrid[[slice(i) for i in vol_ext]]
     voxels = [d.reshape(vol_ext, order='F') for d in voxels]
-
     mms = [voxel_2_xyz[i][3] + sum(voxel_2_xyz[i][k] * voxels[k]
         for k in range(len(voxels))) for i in range(len(voxel_2_xyz) - (4 - len(vol_ext)))]
 
     data = np.squeeze(def_image.data)
     for i in range(data.shape[-1]):
         data[..., i] = mms[i]
+
+
+def generate_displacement_from_deformation(image, def_image):
+    """
+    Generate the displacement field image from deformation image
+    :rtype : Image
+    :param image: Image whose geometry we will use.
+    :param def_image: The input deformation image
+    :return: Displacement image
+    """
+
+    data = np.zeros_like(def_image.data, dtype=np.float32)
+    disp = img.Image.from_data(data, image.get_header())
+    # Matrix to go from voxel to world space
+    voxel_2_xyz = image.voxel_2_mm
+    vol_ext = image.vol_ext
+    voxels = np.mgrid[[slice(i) for i in vol_ext]]
+    voxels = [d.reshape(vol_ext, order='F') for d in voxels]
+    mms = [voxel_2_xyz[i][3] + sum(voxel_2_xyz[i][k] * voxels[k]
+        for k in range(len(voxels))) for i in range(len(voxel_2_xyz) - (4 - len(vol_ext)))]
+
+    defo_data = np.squeeze(def_image.data)
+    disp_data = np.squeeze(data)
+    for i in range(data.shape[-1]):
+        disp_data[..., i] = defo_data[..., i] - mms[i]
+
+    return disp
+
 
 
 def read_affine_transformation(f):
@@ -75,4 +103,5 @@ def is_power2(num):
 
     Returns true if the input is a power of 2, else false
     """
+    
     return num != 0 and ((num & (num - 1)) == 0)
