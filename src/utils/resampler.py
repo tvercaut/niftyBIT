@@ -2,16 +2,16 @@ from scipy import ndimage
 import numpy as np
 
 
-class ImageResampler:
+class ImageResampler(object):
     """
     Class to resample image according to a deformation field
     """
-    def __init__(self):
+    def __init__(self, order=1, prefilter=False):
         """
         Linear interpolation by default.
         """
-        self.order = 1
-        self.prefilter = False
+        self.order = order
+        self.prefilter = prefilter
 
     def resample(self, source, deformation, warped):
         """
@@ -24,7 +24,7 @@ class ImageResampler:
         and must have the same number of time points as the source image.
         """
 
-        assert(source.time_points == warped.time_points)
+        assert source.time_points == warped.time_points
         # Matrix to go from world to voxel space
         ijk_2_voxel = source.mm_2_voxel
         vol_ext = warped.vol_ext
@@ -32,19 +32,20 @@ class ImageResampler:
         def_data = [deformation.data[..., i].reshape(vol_ext, order='F')
                     for i in range(deformation.data.shape[-1])]
 
+        # Create the sampling grid in which the source image will be evaluated.
         def_data = [ijk_2_voxel[i][3] + sum(ijk_2_voxel[i][k] * def_data[k]
                     for k in range(len(def_data)))
                     for i in range(len(vol_ext))]
 
-
-
         if source.time_points == 1:
-            ndimage.map_coordinates(source.data, def_data, warped.data,
-                                    order=self.order, prefilter=self.prefilter)
+            ndimage.map_coordinates(source.data, def_data,
+                                    warped.data, order=self.order,
+                                    prefilter=self.prefilter)
         else:
             for i in range(source.time_points):
-                ndimage.map_coordinates(source.data[i], def_data, warped.data[i],
-                                        order=self.order, prefilter=self.prefilter)
+                ndimage.map_coordinates(source.data[i], def_data,
+                                        warped.data[i], order=self.order,
+                                        prefilter=self.prefilter)
 
 
 class NearestNeighbourResampler(ImageResampler):
@@ -52,7 +53,7 @@ class NearestNeighbourResampler(ImageResampler):
     Set to nearest neighbourhood resampling
     """
     def __init__(self):
-        self.order = 0
+        super(NearestNeighbourResampler, self).__init__(order=0)
 
 
 class CubicSplineResampler(ImageResampler):
@@ -60,11 +61,10 @@ class CubicSplineResampler(ImageResampler):
     Set to cubic spline resampling
     """
     def __init__(self):
-        self.order = 2
-        self.prefilter = True
+        super(CubicSplineResampler, self).__init__(order=2, prefilter=True)
 
 
-class FieldsComposer:
+class FieldsComposer(object):
     """
     Compose fields using linear interpolation.
     """
@@ -79,7 +79,8 @@ class FieldsComposer:
         -----------
         :param left: Outer field.
         :param right: Inner field.
-        :param result: Resulting field after composition. Must be valid and allocated.
+        :param result: Resulting field after composition.
+        Must be valid and allocated.
 
         Order of composition: left(right(x))
         """
@@ -94,5 +95,6 @@ class FieldsComposer:
 
         data = np.squeeze(result.data)
         for i in range(data.shape[-1]):
-            ndimage.map_coordinates(np.squeeze(left.data[..., i]), right_data,
-                                    data[..., i], mode='reflect', order=self.order, prefilter=False)
+            ndimage.map_coordinates(np.squeeze(left.data[..., i]),
+                                    right_data, data[..., i], mode='reflect',
+                                    order=self.order, prefilter=False)

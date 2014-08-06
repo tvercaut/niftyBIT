@@ -10,7 +10,7 @@ def compute_ssd(target, warped, mask):
     :param target: The target image
     :param warped: The warped image. Should be in the same space as the target
     :param mask:
-    :return:
+    :return: The computed sum of square difference
     """
     warped_data = warped.data.astype(np.float32)
     target_data = target.data.astype(np.float32)

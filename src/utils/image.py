@@ -2,7 +2,7 @@ import nibabel as nib
 from numpy import linalg as la
 
 
-class Image:
+class Image(object):
     """
     A wrapper around the nibabel image implementation
     At the moment the assumption is that we only deal with nifti images
@@ -43,19 +43,23 @@ class Image:
         image = nib.load(imagepath)
         return cls(image)
 
+    # pylint: disable=W0201
     def __set_attributes(self):
         """
-        Set other attributes like transformations, volume extents etc. All tied towards nifti images at the moment but
-        we need to make it generic later for the supported formats
+        Set other attributes like transformations, volume extents etc.
+        All tied towards nifti images at the moment but we need to
+        make it generic later for the supported formats
         """
         # nibabel designers in their infinite wisdom, have made this really
-        # complicated. Note, that if you use the parameter code=True (needed to get
-        # the sform code, which for some reason cannot be queried independently),
-        # the returned affine will be None if the sform_code is 0.
+        # complicated. Note, that if you use the parameter code=True
+        # (needed to get the sform code, which for some reason cannot be
+        # queried independently), the returned affine will be None if the
+        # sform_code is 0.
         [self.voxel_2_mm, code] = self.__image.get_sform(True)
         if code <= 0:
             # Do not call it with 'True', else you will not even have the
-            # default matrix if qform is set to 0 (which should not happen but can happen, I guess)
+            # default matrix if qform is set to 0
+            # (which should not happen but can happen, I guess)
             self.voxel_2_mm = self.__image.get_qform()
 
         self.mm_2_voxel = la.inv(self.voxel_2_mm)
@@ -65,6 +69,8 @@ class Image:
             self.time_points = self.vol_ext[3]
 
         self.data = self.__image.get_data()
+
+        return
 
     def get_header(self):
         """
