@@ -131,3 +131,12 @@ def is_power2(num):
     """
 
     return num != 0 and ((num & (num - 1)) == 0)
+
+
+def compute_variance(array):
+    """
+    Compute the variance of a numpy array. This can also be a masked array
+    :param array: A numpy (masked) array
+    :return: The computed variance
+    """
+    return np.ma.var(array)
