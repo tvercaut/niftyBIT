@@ -43,7 +43,6 @@ class Image(object):
         image = nib.load(imagepath)
         return cls(image)
 
-    # pylint: disable=W0201
     def __set_attributes(self):
         """
         Set other attributes like transformations, volume extents etc.
@@ -65,8 +64,11 @@ class Image(object):
         self.mm_2_voxel = la.inv(self.voxel_2_mm)
         self.time_points = 1
         self.vol_ext = self.__image.shape
+
         if len(self.vol_ext) > 3:
             self.time_points = self.vol_ext[3]
+            # Set it to the underlying volume extent
+            self.vol_ext = self.vol_ext[:3]
 
         self.data = self.__image.get_data()
 
@@ -78,3 +80,14 @@ class Image(object):
         :return: Nifti header.
         """
         return self.__image.get_header()
+
+    # pylint: disable=W0201
+    def update_transformation(self, mat):
+        """
+        Update the transformation matrix
+        :param mat: The new transformation matrix
+        """
+        header = self.__image.get_header()
+        self.voxel_2_mm = mat
+        self.mm_2_voxel = la.inv(self.voxel_2_mm)
+        header.set_sform(mat, 1)

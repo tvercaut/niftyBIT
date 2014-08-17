@@ -1,5 +1,6 @@
 from utils.image import Image
 from utils.helper import RegError
+from utils import helper
 from utils.resampler import FieldsComposer
 import numpy as np
 import nibabel as nib
@@ -40,36 +41,7 @@ class SVF(object):
         :param target: The target image. Mandatory.
         :param affine: The initial affine transformation
         """
-        vol_ext = target.vol_ext
-        dims = list()
-        dims.extend(vol_ext)
-        while len(dims) < 4:
-            dims.extend([1])
-        dims.extend([len(vol_ext)])
-
-        # Inititalise with zero displacement
-        data = np.zeros(dims, dtype=np.float32)
-
-        if affine is None:
-            # No initial affine. Just use target header
-            self.field = Image.from_data(data, target.get_header())
-        else:
-            if affine.shape != (4, 4):
-                raise RegError('Input affine transformation '
-                               'should be a 4x4 matrix.')
-
-            mod_hdr = target.get_header()
-
-            [sform, code] = mod_hdr.get_sform(True)
-            if code > 0:
-                transform = affine * sform
-                mod_hdr.setSForm(transform)
-            else:
-                transform = affine * mod_hdr.get_qform()
-                mod_hdr.set_sform(transform, 1)
-
-            # Inititalise the velocity field in the transformed space
-            self.field = Image.from_data(data, header=mod_hdr)
+        self.field = helper.initialise_field(target, affine)
 
     def exponentiate(self, disp_image):
         """

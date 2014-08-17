@@ -1,5 +1,5 @@
 import numpy as np
-from utils import image as img
+from utils.image import Image
 
 
 class RegError(Exception):
@@ -14,18 +14,22 @@ class RegError(Exception):
         return repr(self.message)
 
 
-def generate_identity_deformation(image, def_image):
+def generate_identity_deformation(def_image, image=None):
     """
     Helper method to generate an identity transform
-
-    :param image: The image whose geometry we will use
-    :param def_image: The deformation field image. if it is none,
-    an appropriate image file will be created and returned
+    :param def_image: The deformation field image.
+    :param image: The image whose geometry we will use.
+    If none, then the geometry of the deformation field is used
     """
 
     # Matrix to go from voxel to world space
-    voxel_2_xyz = image.voxel_2_mm
-    vol_ext = image.vol_ext
+    if image is not None:
+        voxel_2_xyz = image.voxel_2_mm
+        vol_ext = image.vol_ext
+    else:
+        voxel_2_xyz = def_image.voxel_2_mm
+        vol_ext = def_image.vol_ext
+
     voxels = np.mgrid[[slice(i) for i in vol_ext]]
     voxels = [d.reshape(vol_ext, order='F') for d in voxels]
     mms = [voxel_2_xyz[i][3] + sum(voxel_2_xyz[i][k] * voxels[k]
@@ -40,7 +44,7 @@ def generate_identity_deformation(image, def_image):
 def field_conversion_method(image, field_image, is_deformation=True):
 
     data = np.zeros_like(field_image.data, dtype=np.float32)
-    field = img.Image.from_data(data, image.get_header())
+    field = Image.from_data(data, image.get_header())
     # Matrix to go from voxel to world space
     voxel_2_xyz = image.voxel_2_mm
     vol_ext = image.vol_ext
@@ -140,3 +144,60 @@ def compute_variance(array):
     :return: The computed variance
     """
     return np.ma.var(array)
+
+
+def initialise_field(im, affine=None):
+        """
+        Create a field image from the specified target image.
+        Sets the data to 0.
+
+        Parameters:
+        -----------
+        :param im: The target image. Mandatory.
+        :param affine: The initial affine transformation
+        :return: Return the created field object
+        """
+        vol_ext = im.vol_ext
+        dims = list()
+        dims.extend(vol_ext)
+        while len(dims) < 4:
+            dims.extend([1])
+        dims.extend([len(vol_ext)])
+
+        # Inititalise with zero
+        data = np.zeros(dims, dtype=np.float32)
+        field = Image.from_data(data, im.get_header())
+
+        # We have supplied an affine transformation
+        if affine is not None:
+            if affine.shape != (4, 4):
+                raise RegError('Input affine transformation '
+                               'should be a 4x4 matrix.')
+            # The updated transformation
+            transform = affine * im.voxel_2_mm
+            field.update_transformation(transform)
+
+        return field
+
+
+def ndmesh(*xi, **kwargs):
+    if len(xi) < 2:
+        msg = 'meshgrid() takes 2 or more arguments (%d given)' % int(len(xi) > 0)
+        raise ValueError(msg)
+
+    args = np.atleast_1d(*xi)
+    ndim = len(args)
+    copy_ = kwargs.get('copy', True)
+
+    s0 = (1,) * ndim
+    output = [x.reshape(s0[:i] + (-1,) + s0[i + 1::]) for i, x in enumerate(args)]
+
+    shape = [x.size for x in output]
+
+    # Return the full N-D matrix (not only the 1-D vector)
+    if copy_:
+        mult_fact = np.ones(shape, dtype=int)
+        return [x * mult_fact for x in output]
+    else:
+        return np.broadcast_arrays(*output)
+
