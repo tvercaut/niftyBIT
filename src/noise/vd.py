@@ -8,13 +8,16 @@ def estimate_vd(residual, mask=None):
     """
     Estimate the virtual decimation factor.
     :param residual: Residual image. Should be a numpy nd-array
-    :param mask: Image mask. f none, whole image is used.
+    :param mask: Image mask. If none, whole image is used.
     """
-    # Copy the array to ensure the changes are local
-    local_image = residual
     # Make the data zero mean, unit variance
-    np.subtract(local_image, np.mean(residual))
-    np.divide(local_image, np.std(local_image))
+    if mask is not None:
+        md = mask > 0
+        local_image = np.subtract(residual, np.mean(residual[md]))
+        local_image = np.divide(local_image, np.std(local_image[md]))
+    else:
+        local_image = np.subtract(residual, np.mean(residual))
+        local_image = np.divide(local_image, np.std(local_image))
 
     shape = local_image.shape
     shape_len = len(shape)
@@ -48,7 +51,7 @@ def estimate_vd(residual, mask=None):
     fwhm = 1.0
     log2 = math.log(2)
     for i in range(shape_len):
-        fwhm *= (-2.0 * log2)/math.log(covas[i]/sigma[i])
+        fwhm *= math.sqrt((-2.0 * log2)/math.log(covas[i]/sigma[i]))
         fac *= 0.9394  # sqrt(4 * log(2)/pi) = 0.9394
 
     return fac/fwhm
