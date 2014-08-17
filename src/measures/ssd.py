@@ -21,6 +21,6 @@ def compute_ssd(target, warped, mask=None):
         md = mask.data > 0
         ssd = np.sum((warped_data[md] - target_data[md])**2)/valid_voxels
     else:
-        ssd = np.sum((warped_data - target_data)**2)
+        ssd = np.sum((warped_data - target_data)**2)/target_data.size
 
     return ssd
