@@ -1,5 +1,9 @@
+__author__ = 'Pankaj Daga'
+
 import nibabel as nib
 from numpy import linalg as la
+from os import path
+import numpy as np
 
 
 class Image(object):
@@ -21,8 +25,9 @@ class Image(object):
         Save the file
         :param filename: Full path and filename for the saved file
         """
-        self.__image.set_filename(filename)
-        nib.save(self.__image, filename)
+        name = path.expanduser(filename)
+        self.__image.set_filename(name)
+        nib.save(self.__image, name)
 
     @classmethod
     def from_data(cls, data, header):
@@ -32,6 +37,15 @@ class Image(object):
         :param header: The image header to use
         """
         image = nib.Nifti1Image(data, affine=None, header=header)
+        return cls(image)
+
+    @classmethod
+    def generate_default_image_from_data(cls, data):
+        """
+        Create object from data. Set transformations to identity
+        :param data: The image data
+        """
+        image = nib.Nifti1Image(data, np.eye(4))
         return cls(image)
 
     @classmethod
@@ -71,8 +85,6 @@ class Image(object):
             self.vol_ext = self.vol_ext[:3]
 
         self.data = self.__image.get_data()
-
-        return
 
     def get_header(self):
         """
