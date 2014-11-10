@@ -43,7 +43,7 @@ class SVF(object):
         """
         self.field = helper.initialise_field(target, affine)
 
-    def exponentiate(self, disp_image):
+    def exponentiate(self):
         """
         Compute the exponential of this velocity field using the
         scaling and squaring approach.
@@ -60,6 +60,9 @@ class SVF(object):
         self.__do_init_check()
         data = self.field.data
 
+        result_data = np.zeros(self.field.data.shape)
+        result = Image.from_data(result_data, self.field.get_header())
+
         # Important: Need to specify which axes to use
         norm = np.linalg.norm(data, axis=data.ndim-1)
         max_norm = np.max(norm[:])
@@ -67,8 +70,7 @@ class SVF(object):
         if max_norm < 0:
             raise ValueError('Maximum norm is invalid.')
         if max_norm == 0:
-            disp_image.data = np.zeros(disp_image.data.shape)
-            return
+            return result
 
         pix_dims = np.asarray(self.field.zooms)
         # ignore NULL dimensions
@@ -77,7 +79,7 @@ class SVF(object):
 
         # Approximate the initial exponential
         init = 1 << num_steps
-        disp_image.data = data / init
+        result_data = data / init
 
         dfc = DisplacementFieldComposer()
         # Do the squaring step to perform the integration
@@ -85,5 +87,6 @@ class SVF(object):
         # the field with itself, which is equivalant to integration over
         # the unit interval.
         for _ in range(0, num_steps):
-            composed = dfc.compose(disp_image, disp_image)
-            disp_image = composed
+            result = dfc.compose(result, result)
+
+        return result
