@@ -124,12 +124,20 @@ def generate_random_smooth_deformation(volume_size,
     return def_field
 
 
-def field_conversion_method(image, field_image, is_deformation=True):
+def field_conversion_method(field_image, image=None,
+                            get_position_field=True):
     data = np.zeros_like(field_image.data, dtype=np.float32)
-    field = Image.from_data(data, image.get_header())
+
     # Matrix to go from voxel to world space
-    voxel_2_xyz = image.voxel_2_mm
-    vol_ext = image.vol_ext
+    if image is not None:
+        voxel_2_xyz = image.voxel_2_mm
+        vol_ext = image.vol_ext
+        field = Image.from_data(data, image.get_header())
+    else:
+        voxel_2_xyz = field_image.voxel_2_mm
+        vol_ext = field_image.vol_ext
+        field = Image.from_data(data, field_image.get_header())
+
     voxels = np.mgrid[[slice(i) for i in vol_ext]]
     voxels = [d.reshape(vol_ext, order='F') for d in voxels]
     mms = [voxel_2_xyz[i][3] + sum(voxel_2_xyz[i][k] * voxels[k]
@@ -139,40 +147,38 @@ def field_conversion_method(image, field_image, is_deformation=True):
     input_data = np.squeeze(field_image.data)
     field_data = np.squeeze(data)
     mms = np.squeeze(mms)
-    if is_deformation:
-        for i in range(data.shape[-1]):
-            # Output is the displacement field
-            field_data[..., i] = input_data[..., i] - mms[i]
-    else:
+    if get_position_field:
         for i in range(data.shape[-1]):
             # Output is the deformation/position field
             field_data[..., i] = input_data[..., i] + mms[i]
+    else:
+        for i in range(data.shape[-1]):
+            # Output is the displacement field
+            field_data[..., i] = input_data[..., i] - mms[i]
 
     return field
 
 
-def generate_displacement_from_deformation(image, def_image):
+def generate_displacement_from_deformation(pos_image, image=None, ):
     """
-    Generate the displacement field image from deformation field image
+    Generate the displacement field image from position field image
     :rtype : Image
     :param image: Image whose geometry we will use.
-    :param def_image: The input deformation field image
+    :param pos_image: The input position field image
     :return: Displacement field image
     """
+    return field_conversion_method(pos_image, image, get_position_field=False)
 
-    return field_conversion_method(image, def_image)
 
-
-def generate_deformation_from_displacement(image, disp_image):
+def generate_position_from_displacement(disp_image, image=None):
     """
-    Generate the deformation field image from displacement fild image
+    Generate the position field image from displacement field image
     :rtype : Image
     :param image: Image whose geometry we will use.
     :param disp_image: The input displacement field image
-    :return: Deformation field image
+    :return: Position field image
     """
-
-    return field_conversion_method(image, disp_image, False)
+    return field_conversion_method(disp_image, image)
 
 
 def read_affine_transformation(input_aff):
