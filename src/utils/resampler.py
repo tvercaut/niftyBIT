@@ -1,5 +1,11 @@
+__author__ = 'Pankaj Daga'
+
 from scipy import ndimage
-import numpy as np
+
+from image import *
+from helper import generate_identity_deformation, \
+    generate_displacement_from_deformation, \
+    generate_position_from_displacement
 
 
 class ImageResampler(object):
@@ -38,7 +44,7 @@ class ImageResampler(object):
                     for i in range(len(vol_ext))]
 
         if source.time_points == 1:
-            ndimage.map_coordinates(source.data, def_data,
+            ndimage.map_coordinates(source.data, np.asarray(def_data),
                                     warped.data, order=self.order,
                                     prefilter=self.prefilter)
         else:
@@ -64,37 +70,88 @@ class CubicSplineResampler(ImageResampler):
         super(CubicSplineResampler, self).__init__(order=2, prefilter=True)
 
 
-class FieldsComposer(object):
+class PositionFieldComposer(object):
     """
-    Compose fields using linear interpolation.
+    Compose position fields using linear interpolation.
     """
-
     def __init__(self):
         self.order = 1
 
-    def compose(self, left, right, result):
+    def set_order(self, order):
+        if order > 0:
+            self.order = order
+        else:
+            self.order = order
+
+    def compose(self, left, right):
         """
-        Compose deformations.
+        Compose position fields.
         Parameters:
         -----------
         :param left: Outer field.
-        :param right: Inner field.
-        :param result: Resulting field after composition.
-        Must be valid and allocated.
-
+        :param right: Inner field
         Order of composition: left(right(x))
+        :return The composed position field
         """
-        ijk_2_voxel = right.mm_2_voxel
-        vol_ext = right.vol_ext[:right.data.shape[-1]]
-        right_data = [right.data[..., i].reshape(vol_ext, order='F')
-                      for i in range(right.data.shape[-1])]
 
-        right_data = [ijk_2_voxel[i][3] + sum(ijk_2_voxel[i][k] * right_data[k]
-                      for k in range(len(right_data)))
-                      for i in range(len(vol_ext))]
+        d = np.zeros(left.data.shape)
+        result = Image.from_data(d, header=left.get_header())
+
+        ijk_2_voxel = left.mm_2_voxel
+        vol_ext = left.vol_ext[:left.data.shape[-1]]
+
+        left_data = [left.data[..., i].reshape(vol_ext, order='F')
+                     for i in range(left.data.shape[-1])]
+
+        left_data = [ijk_2_voxel[i][3] + sum(ijk_2_voxel[i][k] * left_data[k]
+                     for k in range(len(left_data)))
+                     for i in range(len(vol_ext))]
 
         data = np.squeeze(result.data)
+
         for i in range(data.shape[-1]):
-            ndimage.map_coordinates(np.squeeze(left.data[..., i]),
-                                    right_data, data[..., i], mode='reflect',
-                                    order=self.order, prefilter=False)
+            # todo: Incorrect behaviour at boundary
+            # This is an issue we need to revisit.
+            # Nearest mode is not good when we are dealing with fields.
+            # Unfortunately map_coordinates does not allow for leaving the value
+            # as is and we will need to implement this at some point.
+            ndimage.map_coordinates(np.squeeze(right.data[..., i]),
+                                    left_data,
+                                    data[..., i],
+                                    mode='nearest',
+                                    order=self.order, prefilter=True)
+
+        return result
+
+
+class DisplacementFieldComposer(object):
+    """
+    Compose displacement fields using linear interpolation.
+    """
+    def __init__(self):
+        self.order = 1
+
+    @staticmethod
+    def compose(left, right):
+        """
+        Compose displacement fields.
+        Parameters:
+        -----------
+        :param left: Outer displacement field.
+        :param right: Inner displacement field.
+        :param result: Resulting position field after composition.
+        If it is none, it will be allocated
+        Order of composition: left(right(x))
+        """
+        left_def_image = generate_position_from_displacement(left)
+        right_def_image = generate_position_from_displacement(right)
+
+        composer = PositionFieldComposer()
+        result = composer.compose(left_def_image, right_def_image)
+        result = generate_displacement_from_deformation(result)
+        return result
+
+
+
+
+
