@@ -97,15 +97,9 @@ class PositionFieldComposer(object):
         d = np.zeros(left.data.shape)
         result = Image.from_data(d, header=left.get_header())
 
-        ijk_2_voxel = left.mm_2_voxel
         vol_ext = left.vol_ext[:left.data.shape[-1]]
-
         left_data = [left.data[..., i].reshape(vol_ext, order='F')
                      for i in range(left.data.shape[-1])]
-
-        left_data = [ijk_2_voxel[i][3] + sum(ijk_2_voxel[i][k] * left_data[k]
-                     for k in range(len(left_data)))
-                     for i in range(len(vol_ext))]
 
         data = np.squeeze(result.data)
 
