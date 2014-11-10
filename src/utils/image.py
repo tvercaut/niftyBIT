@@ -85,6 +85,7 @@ class Image(object):
             self.vol_ext = self.vol_ext[:3]
 
         self.data = self.__image.get_data()
+        self.zooms = self.__image.get_header().get_zooms()
 
     def get_header(self):
         """
