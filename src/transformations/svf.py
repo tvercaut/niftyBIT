@@ -1,10 +1,10 @@
+__author__ = 'Pankaj Daga'
+
 from utils.image import Image
 from utils.helper import RegError
 from utils import helper
-from utils.resampler import FieldsComposer
+from utils.resampler import DisplacementFieldComposer
 import numpy as np
-import nibabel as nib
-import math
 
 
 class SVF(object):
@@ -48,22 +48,29 @@ class SVF(object):
         Compute the exponential of this velocity field using the
         scaling and squaring approach.
 
+        The velocity field is in the tangent space of the manifold and the
+        displacement field is the actual manifold and the transformation
+        between the velocity field and the displacement field is given by
+        the exponential chart.
+
         :param disp_image: Displacement field image that will be
         updated with the exponentiated velocity field.
         """
 
         self.__do_init_check()
-
         data = self.field.data
-        header = self.field.get_header()
 
-        norm = np.linalg.norm(data)
+        # Important: Need to specify which axes to use
+        norm = np.linalg.norm(data, axis=data.ndim-1)
         max_norm = np.max(norm[:])
 
-        if max_norm <= 0:
+        if max_norm < 0:
             raise ValueError('Maximum norm is invalid.')
+        if max_norm == 0:
+            disp_image.data = np.zeros(disp_image.data.shape)
+            return
 
-        pix_dims = np.asarray(header.get_zooms())
+        pix_dims = np.asarray(self.field.zooms)
         # ignore NULL dimensions
         min_size = np.min(pix_dims[pix_dims > 0])
         num_steps = np.ceil(np.log2(max_norm / (min_size / 2))).astype('int')
@@ -72,14 +79,11 @@ class SVF(object):
         init = 1 << num_steps
         disp_image.data = data / init
 
-        # Generate temporary array
-        temp_data = np.zeros(disp_image.data.shape)
-        temp_nim = nib.Nifti1Image(temp_data, affine=None,
-                                   header=disp_image.header)
-
-        dfc = FieldsComposer()
-        loop_limit = math.log(num_steps, 2)
+        dfc = DisplacementFieldComposer()
         # Do the squaring step to perform the integration
-        for _ in range(0, loop_limit):
-            dfc.compose(disp_image, disp_image, temp_nim)
-            disp_image = temp_nim
+        # The exponential is num_steps times recursive composition of
+        # the field with itself, which is equivalant to integration over
+        # the unit interval.
+        for _ in range(0, num_steps):
+            composed = dfc.compose(disp_image, disp_image)
+            disp_image = composed
