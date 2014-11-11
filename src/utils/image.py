@@ -25,9 +25,10 @@ class Image(object):
         Save the file
         :param filename: Full path and filename for the saved file
         """
+        saved_image = Image.from_data(self.data, self.__image.get_header())
         name = path.expanduser(filename)
-        self.__image.set_filename(name)
-        nib.save(self.__image, name)
+        saved_image.__image.set_filename(filename)
+        nib.save(saved_image.__image, name)
 
     @classmethod
     def from_data(cls, data, header):
