@@ -59,7 +59,6 @@ class SVF(object):
 
         self.__do_init_check()
         data = self.field.data
-
         result_data = np.zeros(self.field.data.shape)
         result = Image.from_data(result_data, self.field.get_header())
 
@@ -79,7 +78,7 @@ class SVF(object):
 
         # Approximate the initial exponential
         init = 1 << num_steps
-        result_data = data / init
+        result.data = data / init
 
         dfc = DisplacementFieldComposer()
         # Do the squaring step to perform the integration
