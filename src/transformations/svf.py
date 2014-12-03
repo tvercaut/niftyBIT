@@ -74,7 +74,7 @@ class SVF(object):
         pix_dims = np.asarray(self.field.zooms)
         # ignore NULL dimensions
         min_size = np.min(pix_dims[pix_dims > 0])
-        num_steps = np.ceil(np.log2(max_norm / (min_size / 2))).astype('int')
+        num_steps = max(0,np.ceil(np.log2(max_norm / (min_size / 2))).astype('int'))
 
         # Approximate the initial exponential
         init = 1 << num_steps
