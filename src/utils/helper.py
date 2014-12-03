@@ -78,7 +78,7 @@ def generate_random_smooth_deformation(volume_size,
         (np.random.random_sample(def_field.data.shape) - 0.5)
     # Smooth the displacement field
     for i in range(0, displacement.shape[4]):
-        np.squeeze(displacement[:,:,:,0,i]) = ndimage.filters.gaussian_filter(np.squeeze(displacement[:,:,:,0,i]), sigma=sigma)
+        displacement[:,:,:,0,i] = ndimage.filters.gaussian_filter(displacement[:,:,:,0,i], sigma=sigma)
 
     disp_s = def_field.data.squeeze() + displacement.squeeze()
     done = False
