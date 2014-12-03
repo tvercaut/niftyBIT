@@ -93,21 +93,12 @@ class PositionFieldComposer(object):
         Order of composition: left(right(x))
         :return The composed position field
         """
+        left_displ = generate_displacement_from_deformation(left)
 
-        d = np.zeros(right.data.shape)
-        result = Image.from_data(d, header=right.get_header())
-        vol_ext = right.vol_ext[:right.data.shape[-1]]
-        right_data = [right.data[..., i].reshape(vol_ext, order='F')
-                      for i in range(right.data.shape[-1])]
-
-        data = np.squeeze(result.data)
-
-        for i in range(data.shape[-1]):
-            ndimage.map_coordinates(np.squeeze(left.data[..., i]),
-                                    right_data,
-                                    data[..., i],
-                                    mode='nearest',
-                                    order=self.order, prefilter=True)
+        disp_composer = DisplacementFieldComposer()
+        disp_composer.order = self.order
+        result = disp_composer.compose_with_position_field(left_displ, right)
+        result.data += right.data
         return result
 
 
@@ -118,21 +109,48 @@ class DisplacementFieldComposer(object):
     def __init__(self):
         self.order = 1
 
-    @staticmethod
-    def compose(left, right):
+    def compose(self, left, right):
         """
         Compose displacement fields.
         Parameters:
         -----------
         :param left: Outer displacement field.
         :param right: Inner displacement field.
-        Order of composition: left(right(x))
+        Order of composition: (Id+left)(Id+right)(x)
         :return Return the composed displacement field
         """
-        right_def_image = generate_position_from_displacement(right)
-        composer = PositionFieldComposer()
-        result = composer.compose(left, right_def_image)
+        right_pos = generate_position_from_displacement(right)
+
+        result = self.compose_with_position_field(left, right_pos)
         result.data += right.data
+        return result
+
+    
+    def compose_with_position_field(self, left, right_pos):
+        """
+        Compose displacement fields.
+        Parameters:
+        -----------
+        :param left: Outer displacement field.
+        :param right_pos: Inner position field.
+        Order of composition: left(right_pos(x))
+        :return Return the composed displacement field
+        """
+
+        d = np.zeros(right_pos.data.shape)
+        result = Image.from_data(d, header=right_pos.get_header())
+        vol_ext = right_pos.vol_ext[:right_pos.data.shape[-1]]
+        right_data = [right_pos.data[..., i].reshape(vol_ext, order='F')
+                      for i in range(right_pos.data.shape[-1])]
+
+        data = np.squeeze(result.data)
+
+        for i in range(data.shape[-1]):
+            ndimage.map_coordinates(np.squeeze(left.data[..., i]),
+                                    right_data,
+                                    data[..., i],
+                                    mode='nearest',
+                                    order=self.order, prefilter=True)
         return result
 
 
