@@ -272,6 +272,41 @@ def initialise_field(im, affine=None):
     return field
 
 
+def initialise_jacobian_field(im, affine=None):
+    """
+    Create a jacobian field image from the specified target image/field.
+    Sets the data to 0.
+
+    Parameters:
+    -----------
+    :param im: The target image/field. Mandatory.
+    :param affine: The initial affine transformation
+    :return: Return the created jacobian field object
+    """
+    vol_ext = np.array(im.vol_ext)
+    dims = list()
+    dims.extend(vol_ext)
+    while len(dims) < 4:
+        dims.extend([1])
+    dims.extend([len(vol_ext[vol_ext>1])])
+    dims.extend([len(vol_ext[vol_ext>1])])
+
+    # Inititalise with zero
+    data = np.zeros(dims, dtype=np.float32)
+    jacfield = Image.from_data(data, im.get_header())
+
+    # We have supplied an affine transformation
+    if affine is not None:
+        if affine.shape != (4, 4):
+            raise RegError('Input affine transformation '
+                           'should be a 4x4 matrix.')
+        # The updated transformation
+        transform = affine * im.voxel_2_mm
+        jacfield.update_transformation(transform)
+
+    return jacfield
+
+
 def ndmesh(*xi, **kwargs):
     """
     n-dimensional mesh code stripped from numpy. This ensures meshgrid can
@@ -323,7 +358,28 @@ def compute_spatial_gradient(image, derivative=None):
     return derivative
 
 
+def compute_jacobian_field(field, jacobian=None):
+    """
+    Compute the spatial gradient of the field using finite differences
+    :param field: The field whose jacobian we need to compute
+    :param jacobian: The jacobian image. If it is none, it is allocated
+    """
 
+    if jacobian is None:
+        jacobian = initialise_jacobian_field(field)
+
+    transform = field.voxel_2_mm
+    dims = []
+    for i in range(sum(np.array(field.vol_ext)>1)):
+        dims.append(transform[i, i])
+
+    output_data = jacobian.data.squeeze()
+    for i in range(jacobian.data.shape[-2]):
+        grad = np.gradient(np.squeeze(field.data[...,i]), *dims)
+        for j in range(jacobian.data.shape[-1]):
+            output_data[..., i, j] = grad[j].squeeze()
+
+    return jacobian
 
 
 
