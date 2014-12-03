@@ -249,12 +249,12 @@ def initialise_field(im, affine=None):
     :param affine: The initial affine transformation
     :return: Return the created field object
     """
-    vol_ext = im.vol_ext
+    vol_ext = np.array(im.vol_ext)
     dims = list()
     dims.extend(vol_ext)
     while len(dims) < 4:
         dims.extend([1])
-    dims.extend([len(vol_ext)])
+    dims.extend([len(vol_ext[vol_ext>1])])
 
     # Inititalise with zero
     data = np.zeros(dims, dtype=np.float32)
