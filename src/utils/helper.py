@@ -1,5 +1,3 @@
-from pymc.NumpyDeterministics import jacobians
-
 __author__ = 'Pankaj Daga'
 
 import numpy as np
@@ -197,51 +195,9 @@ def computation_jacobian_matrix_from_displacement(displacement_field):
     if len(input_shape) != 5:
         raise RuntimeError("The input does not seem to be a displacement field")
 
-    output_shape = list()
-    output_shape.extend(input_shape[0:3])
-    output_shape.extend([1])
-    output_shape.extend([input_shape[4]**2])
-
     position_field = generate_position_from_displacement(displacement_field)
-    position_data = position_field.data.squeeze()
 
-    jacobian_data = np.zeros(output_shape)
-    jacobian_data = jacobian_data.squeeze()
-
-    if input_shape[4] == 2:
-        grad = np.gradient(position_data[..., 0])
-        jacobian_data[..., 0] = grad[0]
-        jacobian_data[..., 1] = grad[1]
-        grad = np.gradient(position_data[..., 1])
-        jacobian_data[..., 2] = grad[0]
-        jacobian_data[..., 3] = grad[1]
-
-        jacobian_data = jacobian_data.reshape(output_shape)
-        img = Image.from_data(jacobian_data, displacement_field.get_header())
-        img.set_matrix_data_attributes(2, 2)
-        return img
-
-    elif input_shape[4] == 3:
-        grad = np.gradient(position_data[..., 0])
-        jacobian_data[..., 0] = grad[0]
-        jacobian_data[..., 1] = grad[1]
-        jacobian_data[..., 2] = grad[2]
-        grad = np.gradient(position_data[..., 1])
-        jacobian_data[..., 3] = grad[0]
-        jacobian_data[..., 4] = grad[1]
-        jacobian_data[..., 5] = grad[2]
-        grad = np.gradient(position_data[..., 2])
-        jacobian_data[..., 6] = grad[0]
-        jacobian_data[..., 7] = grad[1]
-        jacobian_data[..., 8] = grad[2]
-
-        jacobian_data = jacobian_data.reshape(output_shape)
-        img = Image.from_data(jacobian_data, displacement_field.get_header())
-        img.set_matrix_data_attributes(3, 3)
-        return img
-
-    else:
-        raise RuntimeError("Jacobian computation is only implemented for 2D and 3D vector fields")
+    return compute_jacobian_field(position_field)
 
 
 
@@ -315,11 +271,13 @@ def initialise_field(im, affine=None):
     dims.extend(vol_ext)
     while len(dims) < 4:
         dims.extend([1])
-    dims.extend([len(vol_ext[vol_ext>1])])
+    num_dims = len(vol_ext[vol_ext>1])
+    dims.extend([num_dims])
 
     # Inititalise with zero
     data = np.zeros(dims, dtype=np.float32)
     field = Image.from_data(data, im.get_header())
+    field.set_matrix_data_attributes(num_dims, num_dims)
 
     # We have supplied an affine transformation
     if affine is not None:
@@ -349,7 +307,8 @@ def initialise_jacobian_field(im, affine=None):
     dims.extend(vol_ext)
     while len(dims) < 4:
         dims.extend([1])
-    dims.extend([len(vol_ext[vol_ext>1])**2])
+    num_dims = len(vol_ext[vol_ext>1])
+    dims.extend([num_dims**2])
 
     # Inititalise with zero
     data = np.zeros(dims, dtype=np.float32)
