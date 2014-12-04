@@ -1,3 +1,5 @@
+from pymc.NumpyDeterministics import jacobians
+
 __author__ = 'Pankaj Daga'
 
 import numpy as np
@@ -182,6 +184,65 @@ def generate_position_from_displacement(disp_image, image=None):
     :return: Position field image
     """
     return field_conversion_method(disp_image, image)
+
+
+def computation_jacobian_matrix_from_displacement(displacement_field):
+    """
+    Generate the jacobian matrix from a displacement field
+    :param displacement_field: The input displacement field
+    :return: The jacobian image matrix
+    """
+
+    input_shape = displacement_field.data.shape
+    if len(input_shape) != 5:
+        raise RuntimeError("The input does not seem to be a displacement field")
+
+    output_shape = list()
+    output_shape.extend(input_shape[0:3])
+    output_shape.extend([1])
+    output_shape.extend([input_shape[4]**2])
+
+    position_field = generate_position_from_displacement(displacement_field)
+    position_data = position_field.data.squeeze()
+
+    jacobian_data = np.zeros(output_shape)
+    jacobian_data = jacobian_data.squeeze()
+
+    if input_shape[4] == 2:
+        grad = np.gradient(position_data[..., 0])
+        jacobian_data[..., 0] = grad[0]
+        jacobian_data[..., 1] = grad[1]
+        grad = np.gradient(position_data[..., 1])
+        jacobian_data[..., 2] = grad[0]
+        jacobian_data[..., 3] = grad[1]
+
+        jacobian_data = jacobian_data.reshape(output_shape)
+        img = Image.from_data(jacobian_data, displacement_field.get_header())
+        img.set_matrix_data_attributes(2, 2)
+        return img
+
+    elif input_shape[4] == 3:
+        grad = np.gradient(position_data[..., 0])
+        jacobian_data[..., 0] = grad[0]
+        jacobian_data[..., 1] = grad[1]
+        jacobian_data[..., 2] = grad[2]
+        grad = np.gradient(position_data[..., 1])
+        jacobian_data[..., 3] = grad[0]
+        jacobian_data[..., 4] = grad[1]
+        jacobian_data[..., 5] = grad[2]
+        grad = np.gradient(position_data[..., 2])
+        jacobian_data[..., 6] = grad[0]
+        jacobian_data[..., 7] = grad[1]
+        jacobian_data[..., 8] = grad[2]
+
+        jacobian_data = jacobian_data.reshape(output_shape)
+        img = Image.from_data(jacobian_data, displacement_field.get_header())
+        img.set_matrix_data_attributes(3, 3)
+        return img
+
+    else:
+        raise RuntimeError("Jacobian computation is only implemented for 2D and 3D vector fields")
+
 
 
 def read_affine_transformation(input_aff):
