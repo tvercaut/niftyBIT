@@ -88,6 +88,12 @@ class Image(object):
         self.data = self.__image.get_data()
         self.zooms = self.__image.get_header().get_zooms()
 
+        self.is_matrix_data = False
+        self.num_matrix_rows = 0
+        self.num_matrix_cols = 0
+        # Check if the input image is a matrix image
+        self.load_matrix_data_attributes()
+
     def get_header(self):
         """
         Get the nifti header associated with this image
@@ -105,3 +111,26 @@ class Image(object):
         self.voxel_2_mm = mat
         self.mm_2_voxel = la.inv(self.voxel_2_mm)
         header.set_sform(mat, 1)
+
+    # Set the intent flags which should tell us that the image
+    # is a matrix image. The matrix is always stored in row major
+    # format (according to NIFTI standards). The intent_1 and
+    # intent_2 fields tell us the dimensions
+    def set_matrix_data_attributes(self, rows, cols):
+        # Set the matrix rows and column sizes
+        header = self.get_header()
+        self.num_matrix_rows = rows
+        self.num_matrix_cols = cols
+        self.is_matrix_data = True
+        header.set_intent(1004, (self.num_matrix_rows, self.num_matrix_cols),
+                          name='Jacobian Matrix')
+
+    # Load the matrix data attributes
+    def load_matrix_data_attributes(self):
+        # Set the matrix rows and column sizes
+        header = self.get_header()
+        (code, params, name) = header.get_intent('code')
+        if code == 1004 and len(params) >= 2:
+            self.num_matrix_rows = params[0]
+            self.num_matrix_cols = params[1]
+            self.is_matrix_data = True
