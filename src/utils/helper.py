@@ -277,7 +277,6 @@ def initialise_field(im, affine=None):
     # Inititalise with zero
     data = np.zeros(dims, dtype=np.float32)
     field = Image.from_data(data, im.get_header())
-    field.set_matrix_data_attributes(num_dims, num_dims)
 
     # We have supplied an affine transformation
     if affine is not None:
@@ -313,6 +312,7 @@ def initialise_jacobian_field(im, affine=None):
     # Inititalise with zero
     data = np.zeros(dims, dtype=np.float32)
     jacfield = Image.from_data(data, im.get_header())
+    jacfield.set_matrix_data_attributes(num_dims, num_dims)
 
     # We have supplied an affine transformation
     if affine is not None:
